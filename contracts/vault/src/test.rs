@@ -1,7 +1,9 @@
+#![allow(duplicate_macro_attributes)]
+
 extern crate std;
 
 use soroban_sdk::testutils::{Address as _, Events as _};
-use soroban_sdk::{token, Address, Env, IntoVal, String, Symbol, TryFromVal};
+use soroban_sdk::{token, Address, Env, IntoVal, String, Symbol};
 
 use super::*;
 
@@ -31,7 +33,8 @@ fn create_vault(env: &Env) -> (Address, CalloraVaultClient<'_>) {
 /// Register and initialize the settlement contract.
 fn create_settlement(env: &Env, admin: &Address, vault_address: &Address) -> Address {
     let settlement_address = env.register(CalloraSettlement, ());
-    let settlement_client = callora_settlement::CalloraSettlementClient::new(env, &settlement_address);
+    let settlement_client =
+        callora_settlement::CalloraSettlementClient::new(env, &settlement_address);
     env.mock_all_auths();
     settlement_client.init(admin, vault_address);
     settlement_address
@@ -2908,7 +2911,7 @@ fn test_set_authorized_caller() {
 fn set_authorized_caller_non_owner_fails() {
     let env = Env::default();
     let owner = Address::generate(&env);
-    let non_owner = Address::generate(&env);
+    let _non_owner = Address::generate(&env);
     let new_caller = Address::generate(&env);
     let (_, client) = create_vault(&env);
     let (usdc, _, _) = create_usdc(&env, &owner);
@@ -5844,7 +5847,6 @@ fn test_reentry_repeated_attempts() {
     assert_eq!(vault_client.balance(), 400);
 }
 
-
 // ---------------------------------------------------------------------------
 // Upgrade tests (Issue #331)
 // ---------------------------------------------------------------------------
@@ -5894,13 +5896,13 @@ fn upgrade_sets_version_and_emits_event() {
     let events = env.events().all();
     let ev = events.last().unwrap();
     assert_eq!(ev.0, vault_address);
-    
+
     let name: Symbol = ev.1.get(0).unwrap().into_val(&env);
     assert_eq!(name, Symbol::new(&env, "upgraded"));
-    
+
     let admin_topic: Address = ev.1.get(1).unwrap().into_val(&env);
     assert_eq!(admin_topic, owner);
-    
+
     let data: BytesN<32> = ev.2.into_val(&env);
     assert_eq!(data, new_hash);
 }
@@ -5952,7 +5954,10 @@ fn upgrade_owner_not_admin_fails() {
 
     // owner (no longer admin) should fail
     let res = client.try_upgrade(&owner, &new_hash);
-    assert!(res.is_err(), "owner without admin role should not be able to upgrade");
+    assert!(
+        res.is_err(),
+        "owner without admin role should not be able to upgrade"
+    );
 }
 
 #[test]
@@ -6022,23 +6027,37 @@ impl BudgetSnapshot {
     /// Calculate delta between two snapshots (after - before).
     fn delta(&self, before: &BudgetSnapshot) -> BudgetSnapshot {
         BudgetSnapshot {
-            cpu_instructions: self.cpu_instructions.saturating_sub(before.cpu_instructions),
+            cpu_instructions: self
+                .cpu_instructions
+                .saturating_sub(before.cpu_instructions),
             memory_bytes: self.memory_bytes.saturating_sub(before.memory_bytes),
-            ledger_read_bytes: self.ledger_read_bytes.saturating_sub(before.ledger_read_bytes),
-            ledger_write_bytes: self.ledger_write_bytes.saturating_sub(before.ledger_write_bytes),
+            ledger_read_bytes: self
+                .ledger_read_bytes
+                .saturating_sub(before.ledger_read_bytes),
+            ledger_write_bytes: self
+                .ledger_write_bytes
+                .saturating_sub(before.ledger_write_bytes),
         }
     }
 }
 
 /// Helper function to set up a fully initialized vault with settlement and sufficient balance.
-fn setup_vault_for_deduct(env: &Env, initial_balance: i128) -> (Address, CalloraVaultClient) {
+fn setup_vault_for_deduct(env: &Env, initial_balance: i128) -> (Address, CalloraVaultClient<'_>) {
     let owner = Address::generate(env);
     let (vault_address, client) = create_vault(env);
     let (usdc, _, usdc_admin) = create_usdc(env, &owner);
 
     env.mock_all_auths();
     fund_vault(&usdc_admin, &vault_address, initial_balance);
-    client.init(&owner, &usdc, &Some(initial_balance), &None, &None, &None, &None);
+    client.init(
+        &owner,
+        &usdc,
+        &Some(initial_balance),
+        &None,
+        &None,
+        &None,
+        &None,
+    );
     let settlement = create_settlement(env, &owner, &vault_address);
     client.set_settlement(&owner, &settlement);
 
@@ -6186,15 +6205,15 @@ fn budget_measure_batch_deduct_size_50() {
 #[ignore]
 fn budget_measure_all() {
     std::println!("\n=== VAULT BUDGET MEASUREMENT SUITE ===\n");
-    
+
     // Single deduct baseline
     budget_measure_single_deduct();
-    
+
     // Batch deduct at various sizes
     budget_measure_batch_deduct_size_1();
     budget_measure_batch_deduct_size_10();
     budget_measure_batch_deduct_size_25();
     budget_measure_batch_deduct_size_50();
-    
+
     std::println!("\n=== END VAULT BUDGET MEASUREMENTS ===\n");
 }
